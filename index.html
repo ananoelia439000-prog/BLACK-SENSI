@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BL4CK SENSI</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff;
+        }
+
+        /* ----- VISTA 1: LOGIN ----- */
+        #loginScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050202; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10; padding: 20px;
+        }
+        .login-card {
+            width: 100%; max-width: 360px; background: rgba(14, 4, 4, 0.95);
+            border: 2px solid #ff1e1e; border-radius: 20px; padding: 25px;
+            text-align: center; box-shadow: 0 10px 30px rgba(255, 0, 0, 0.3);
+        }
+        .logo-img {
+            width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+            border: 2px solid #ff1e1e; box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); margin-bottom: 15px;
+            pointer-events: none;
+        }
+        .title-login {
+            font-size: 1.2rem; font-weight: 900; letter-spacing: 2px; color: #ff1e1e; margin-bottom: 20px;
+        }
+        .input-key {
+            width: 100%; padding: 14px; border-radius: 12px; background: #140505;
+            border: 1px solid #ff3333; color: #fff; font-size: 0.95rem; font-weight: bold;
+            text-align: center; outline: none; margin-bottom: 15px; text-transform: uppercase;
+            -webkit-user-select: text; user-select: text;
+        }
+        .btn-enter {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            background: linear-gradient(135deg, #ff1e1e, #b30000); color: #fff;
+            font-size: 1rem; font-weight: 900; letter-spacing: 1.5px; cursor: pointer;
+        }
+
+        /* ----- VISTA 2: PANEL CON FONDO BL4CK SENSI ----- */
+        #mainScreen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('https://i.ibb.co/VYLCYc6s/IMG-20260823-WA0059.jpg');
+            background-size: cover; background-position: center;
+            justify-content: center; align-items: center;
+        }
+        .btn-onn {
+            background: linear-gradient(180deg, #ffe066 0%, #d4af37 50%, #997a15 100%);
+            color: #2b1d00; border: 2px solid #fff5cc; border-radius: 25px;
+            padding: 12px 38px; font-size: 1.2rem; font-weight: 900; letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.8), inset 0 2px 5px rgba(255,255,255,0.8);
+            cursor: pointer; text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+            transition: transform 0.15s ease;
+        }
+        .btn-onn:active { transform: scale(0.92); }
+
+        /* Toast Notificación */
+        #toast {
+            position: fixed; bottom: 20px; background: #140505; color: #ff4d4d;
+            border: 1px solid #ff1e1e; padding: 10px 20px; border-radius: 10px;
+            font-size: 0.85rem; font-weight: bold; opacity: 0; transition: opacity 0.3s ease;
+            z-index: 1000; pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA 1: LOGIN -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <img src="https://i.ibb.co/VYLCYc6s/IMG-20260823-WA0059.jpg" class="logo-img">
+            <div class="title-login">BL4CK ACCESS</div>
+            <input type="text" id="userKey" class="input-key" placeholder="INGRESA TU KEY" autocomplete="off">
+            <button class="btn-enter" onclick="validarKey()">INGRESAR</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA 2: BOTÓN DORADO SOBRE FONDO -->
+    <div id="mainScreen">
+        <button class="btn-onn" onclick="abrirFreeFire()">ONN</button>
+    </div>
+
+    <div id="toast">Notificación</div>
+
+    <script>
+        const firebaseConfig = {
+            databaseURL: "https://bl4ck-sensi-3df0d-default-rtdb.firebaseio.com/"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        function getDeviceId() {
+            let str = navigator.userAgent + screen.width + "x" + screen.height;
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = (hash << 5) - hash + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return "DEV-" + Math.abs(hash);
+        }
+
+        function mostrarToast(mensaje, esError = false) {
+            const toast = document.getElementById("toast");
+            toast.innerText = mensaje;
+            toast.style.color = esError ? "#ff4d4d" : "#00ff88";
+            toast.style.borderColor = esError ? "#ff1e1e" : "#00ff88";
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 2500);
+        }
+
+        function validarKey() {
+            const inputKey = document.getElementById("userKey").value.trim();
+            const myDeviceId = getDeviceId();
+
+            if (!inputKey) {
+                mostrarToast("Por favor ingresa tu Key", true);
+                return;
+            }
+
+            database.ref('keys/' + inputKey).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    
+                    if (data.estado === "EXPIRADA" || data.active === false) {
+                        mostrarToast("Key deshabilitada o expirada", true);
+                        return;
+                    }
+
+                    if (!data.registeredDevice) {
+                        database.ref('keys/' + inputKey).update({
+                            registeredDevice: myDeviceId,
+                            estado: "EN USO"
+                        });
+                        entrar();
+                        return;
+                    }
+
+                    if (data.registeredDevice === myDeviceId) {
+                        entrar();
+                    } else {
+                        mostrarToast("Key vinculada a otro dispositivo", true);
+                    }
+                } else {
+                    mostrarToast("Key no existe", true);
+                }
+            }).catch(() => mostrarToast("Error de conexión", true));
+        }
+
+        function entrar() {
+            mostrarToast("Bienvenido");
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("mainScreen").style.display = "flex";
+        }
+
+        function abrirFreeFire() {
+            mostrarToast("Abriendo Free Fire...");
+            window.location.href = "intent://#Intent;scheme=freefire;package=com.dts.freefireth;end;";
+
+            setTimeout(() => {
+                window.location.href = "intent://#Intent;scheme=freefiremax;package=com.dts.freefiremax;end;";
+            }, 800);
+
+            setTimeout(() => {
+                window.location.href = "android-app://com.dts.freefireth";
+            }, 1600);
+        }
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('copy', e => e.preventDefault());
+        document.addEventListener('cut', e => e.preventDefault());
+        document.addEventListener('dragstart', e => e.preventDefault());
+    </script>
+</body>
+</html>
